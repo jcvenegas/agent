@@ -38,6 +38,9 @@ jobs:
           set -x
           mkdir -p $(dirname "${GOPATH}/src/${agent_repo}")
           ln -sf ${PWD} "${GOPATH}/src/${agent_repo}"
+          pushd "${GOPATH}/src/${agent_repo}"
+          git status
+          popd
       - name: build image
         run: |
           go get "${osbuilder_repo}" || true
