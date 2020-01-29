@@ -36,7 +36,7 @@ jobs:
       - name: Add agent to gopath
         run: |
           set -x
-          mkdir -p $(dirname "${GOPATH}/src/${agent_repo}"
+          mkdir -p $(dirname "${GOPATH}/src/${agent_repo}")
           ln -sf ${PWD} "${GOPATH}/src/${agent_repo}"
       - name: build image
         run: |
