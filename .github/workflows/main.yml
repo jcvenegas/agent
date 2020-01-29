@@ -1,0 +1,60 @@
+name: build image
+on:
+  push:
+    branches:
+      - img-*
+
+jobs:
+  # Job for building the image
+  build-image:
+    runs-on: ubuntu-18.04
+    env:
+      osbuilder_repo: "github.com/kata-containers/osbuilder"
+      agent_repo: "github.com/kata-containers/agent"
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: Setup go
+        uses: actions/setup-go@v1
+        with:
+          go-version: '1.12.3'
+      - name: Set GOPATH
+        run: |
+          export GOPATH="${HOME}/go"
+          echo "##[set-env name=GOPATH;]${GOPATH}"
+          echo "##[add-path]${GOPATH}/bin"
+          mkdir -p "${GOPATH}/bin"
+      - name: Install yq
+        run: |
+          curl -o "${GOPATH}/bin/yq" -LSsf https://github.com/mikefarah/yq/releases/download/2.3.0/yq_linux_amd64
+          chmod +x "$GOPATH/bin/yq"
+      - name: install hub
+        run: |
+          HUB_VER=$(curl -s "https://api.github.com/repos/github/hub/releases/latest" | jq -r .tag_name | sed 's/^v//')
+          wget -q -O- https://github.com/github/hub/releases/download/v$HUB_VER/hub-linux-amd64-$HUB_VER.tgz | \
+          tar xz --strip-components=2 --wildcards '*/bin/hub' && sudo mv hub /usr/local/bin/hub
+      - name: Add agent to gopath
+        run: |
+          set -x
+          mkdir -p $(dirname "${GOPATH}/src/${agent_repo}")
+          cp -r ${PWD} $(dirname "${GOPATH}/src/${agent_repo}")
+          pushd "${GOPATH}/src/${agent_repo}"
+          git status
+          popd
+      - name: build image
+        run: |
+          pushd "${GOPATH}/src/${agent_repo}"
+          git status
+          popd
+          go get "${osbuilder_repo}" || true
+          pushd "${GOPATH}/src/${osbuilder_repo}"
+          sudo -E PATH="${PATH}" make image DISTRO="clearlinux" DEBUG="1" USE_DOCKER="1" ROOTFS_BUILD_DEST="/tmp/rootfs-image" GO_VERSION=1.12.3
+          popd
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+        # Artifact name
+          name: kata-image.img
+        # Directory containing files to upload
+          path: "${GOPATH}/src/${osbuilder_repo}/kata-containers.img"
+
