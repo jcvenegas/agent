@@ -51,11 +51,22 @@ jobs:
           sudo -E PATH="${PATH}" make image DISTRO="clearlinux" AGENT_INIT=yes DEBUG="1" USE_DOCKER="1" ROOTFS_BUILD_DEST="/tmp/rootfs-image" GO_VERSION=1.12.3
           mv "${GOPATH}/src/${osbuilder_repo}/kata-containers.img" /tmp/kata.img
           popd
-      - name: Upload artifact
-        uses: actions/upload-artifact@v1.0.0
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-        # Artifact name
-          name: kata-image.img
-        # Directory containing files to upload
-          path: "/tmp/kata.img"
-
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: "/tmp/kata.img"
+          asset_name: my-artifact.img
